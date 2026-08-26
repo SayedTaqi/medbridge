@@ -1,0 +1,15 @@
+{
+  "cli": { "version": ">= 12.0.0" },
+  "build": {
+    "production": {
+      "distribution": "store",
+      "autoIncrement": true
+    },
+    "preview": {
+      "distribution": "internal"
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

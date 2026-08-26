@@ -1,0 +1,250 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+
+enum Role { PATIENT PHARMACY ADMIN }
+enum RequestStatus { OPEN FULFILLED EXPIRED CANCELLED }
+enum ResponseStatus { AVAILABLE NOT_AVAILABLE CAN_ORDER }
+enum ReservationStatus { ACTIVE PICKED_UP CANCELLED EXPIRED }
+
+model User {
+  id String @id @default(cuid())
+  name String
+  phone String @unique
+  passwordHash String
+  role Role
+  active Boolean @default(true)
+  tokenVersion Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  medicines Medicine[]
+  requests MedicineRequest[]
+  reminders Reminder[]
+  pharmacy Pharmacy?
+  reservations Reservation[]
+  sessions Session[]
+  notifications Notification[]
+  pushTokens PushToken[]
+  auditLogs AuditLog[]
+  subscriptions Subscription[]
+  familyOwned FamilyMember[] @relation("FamilyOwner")
+  familyMemberships FamilyMember[] @relation("FamilyMember")
+  documents UserDocument[]
+  reminders Reminder[]
+  travelMode TravelMode?
+}
+model Session {
+  id String @id @default(cuid())
+  userId String
+  tokenHash String @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@index([userId,revokedAt])
+}
+model Medicine {
+  id String @id @default(cuid())
+  userId String
+  name String
+  dose String
+  quantity Int
+  remaining Int
+  dosesPerDay Float
+  nextRefillDate DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  requests MedicineRequest[]
+  reminders Reminder[]
+  @@index([userId,nextRefillDate])
+}
+model Pharmacy {
+  id String @id @default(cuid())
+  userId String @unique
+  name String
+  address String
+  lat Float
+  lng Float
+  verified Boolean @default(false)
+  verificationNote String?
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  responses AvailabilityResponse[]
+  reservations Reservation[]
+  inventory Inventory[]
+  @@index([verified])
+}
+model Inventory {
+  id String @id @default(cuid())
+  pharmacyId String
+  medicineName String
+  quantity Int @default(0)
+  unitPrice Float
+  updatedAt DateTime @updatedAt
+  pharmacy Pharmacy @relation(fields:[pharmacyId],references:[id],onDelete:Cascade)
+  @@unique([pharmacyId,medicineName])
+  @@index([medicineName])
+}
+model MedicineRequest {
+  id String @id @default(cuid())
+  userId String
+  medicineId String
+  quantity Int
+  lat Float
+  lng Float
+  status RequestStatus @default(OPEN)
+  activeKey String? @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  medicine Medicine @relation(fields:[medicineId],references:[id],onDelete:Cascade)
+  responses AvailabilityResponse[]
+  reservations Reservation[]
+  @@index([userId,status,createdAt])
+  @@index([status,expiresAt])
+}
+model AvailabilityResponse {
+  id String @id @default(cuid())
+  requestId String
+  pharmacyId String
+  status ResponseStatus
+  price Float?
+  note String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  request MedicineRequest @relation(fields:[requestId],references:[id],onDelete:Cascade)
+  pharmacy Pharmacy @relation(fields:[pharmacyId],references:[id],onDelete:Cascade)
+  @@unique([requestId,pharmacyId])
+  @@index([pharmacyId,status])
+}
+model Reservation {
+  id String @id @default(cuid())
+  requestId String
+  pharmacyId String
+  userId String
+  quantity Int
+  unitPrice Float
+  totalPrice Float
+  status ReservationStatus @default(ACTIVE)
+  activeKey String? @unique
+  expiresAt DateTime
+  stockRestoredAt DateTime?
+  patientStockRestoredAt DateTime?
+  createdAt DateTime @default(now())
+  pickedUpAt DateTime?
+  request MedicineRequest @relation(fields:[requestId],references:[id],onDelete:Cascade)
+  pharmacy Pharmacy @relation(fields:[pharmacyId],references:[id],onDelete:Cascade)
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@index([userId,status,createdAt])
+  @@index([pharmacyId,status,createdAt])
+  @@index([status,expiresAt])
+}
+model Notification {
+  id String @id @default(cuid())
+  userId String
+  title String
+  body String
+  data Json?
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@index([userId,readAt,createdAt])
+}
+model PushToken {
+  id String @id @default(cuid())
+  userId String
+  token String @unique
+  platform String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@index([userId])
+}
+model AuditLog {
+  id String @id @default(cuid())
+  actorUserId String?
+  action String
+  entity String
+  entityId String?
+  metadata Json?
+  createdAt DateTime @default(now())
+  actor User? @relation(fields:[actorUserId],references:[id],onDelete:SetNull)
+  @@index([actorUserId,createdAt])
+  @@index([entity,entityId,createdAt])
+}
+
+enum SubscriptionStatus { TRIALING ACTIVE PAST_DUE CANCELLED EXPIRED }
+enum PlanType { CONSUMER_PREMIUM PHARMACY_PRO }
+enum FamilyRole { FAMILY CAREGIVER }
+enum DocumentType { PRESCRIPTION PHARMACY_LICENSE }
+
+model Subscription {
+  id String @id @default(cuid())
+  userId String
+  plan PlanType
+  status SubscriptionStatus
+  provider String
+  providerCustomerId String?
+  providerSubscriptionId String? @unique
+  currentPeriodStart DateTime?
+  currentPeriodEnd DateTime?
+  trialEndsAt DateTime?
+  cancelAtPeriodEnd Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@index([userId,status])
+}
+
+model FamilyMember {
+  id String @id @default(cuid())
+  ownerId String
+  memberId String
+  role FamilyRole
+  canViewMedicines Boolean @default(true)
+  canCreateRefillRequest Boolean @default(true)
+  canViewHistory Boolean @default(true)
+  createdAt DateTime @default(now())
+  owner User @relation("FamilyOwner",fields:[ownerId],references:[id],onDelete:Cascade)
+  member User @relation("FamilyMember",fields:[memberId],references:[id],onDelete:Cascade)
+  @@unique([ownerId,memberId])
+}
+
+model UserDocument {
+  id String @id @default(cuid())
+  userId String
+  type DocumentType
+  storageKey String
+  originalName String
+  mimeType String
+  sizeBytes Int
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@index([userId,type,createdAt])
+}
+
+model Reminder {
+  id String @id @default(cuid())
+  userId String
+  medicineId String
+  hour Int
+  minute Int
+  enabled Boolean @default(true)
+  timezone String @default("Asia/Kolkata")
+  advanced Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  medicine Medicine @relation(fields:[medicineId],references:[id],onDelete:Cascade)
+  @@index([userId,enabled])
+}
+
+model TravelMode {
+  id String @id @default(cuid())
+  userId String @unique
+  enabled Boolean @default(false)
+  startDate DateTime?
+  endDate DateTime?
+  timezone String?
+  notes String?
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+}
