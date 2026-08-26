@@ -32,7 +32,13 @@ app.use(generalLimiter);
 
 const phone=z.string().regex(/^[6-9]\d{9}$/);
 const id=z.string().min(1).max(100);
-type Req=express.Request & {auth?:{userId:string;role:Role;sessionId:string}};
+type Req = express.Request<Record<string, string>> & {
+  auth?: {
+    userId: string;
+    role: Role;
+    sessionId: string;
+  };
+};
 const hash=(v:string)=>crypto.createHash('sha256').update(v).digest('hex');
 const publicUser=(u:any)=>({id:u.id,name:u.name,phone:u.phone,role:u.role,active:u.active,pharmacy:u.pharmacy??null});
 function distanceKm(aLat:number,aLng:number,bLat:number,bLng:number){const R=6371,r=Math.PI/180,dLat=(bLat-aLat)*r,dLng=(bLng-aLng)*r;const x=Math.sin(dLat/2)**2+Math.cos(aLat*r)*Math.cos(bLat*r)*Math.sin(dLng/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
