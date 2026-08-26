@@ -1,10 +1,36 @@
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+generator client {
+  provider = "prisma-client-js"
+}
 
-enum Role { PATIENT PHARMACY ADMIN }
-enum RequestStatus { OPEN FULFILLED EXPIRED CANCELLED }
-enum ResponseStatus { AVAILABLE NOT_AVAILABLE CAN_ORDER }
-enum ReservationStatus { ACTIVE PICKED_UP CANCELLED EXPIRED }
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+enum Role {
+  PATIENT
+  PHARMACY
+  ADMIN
+}
+
+enum RequestStatus {
+  OPEN
+  FULFILLED
+  EXPIRED
+  CANCELLED
+}
+
+enum ResponseStatus {
+  AVAILABLE
+  NOT_AVAILABLE
+  CAN_ORDER
+}
+
+enum ReservationStatus {
+  ACTIVE
+  PICKED_UP
+  CANCELLED
+  EXPIRED
+}
 
 model User {
   id String @id @default(cuid())
@@ -170,11 +196,29 @@ model AuditLog {
   @@index([actorUserId,createdAt])
   @@index([entity,entityId,createdAt])
 }
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
 
-enum SubscriptionStatus { TRIALING ACTIVE PAST_DUE CANCELLED EXPIRED }
-enum PlanType { CONSUMER_PREMIUM PHARMACY_PRO }
-enum FamilyRole { FAMILY CAREGIVER }
-enum DocumentType { PRESCRIPTION PHARMACY_LICENSE }
+enum PlanType {
+  CONSUMER_PREMIUM
+  PHARMACY_PRO
+}
+
+enum FamilyRole {
+  FAMILY
+  CAREGIVER
+}
+
+enum DocumentType {
+  PRESCRIPTION
+  PHARMACY_LICENSE
+}
+
 
 model Subscription {
   id String @id @default(cuid())
