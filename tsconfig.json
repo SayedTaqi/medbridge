@@ -1,1 +1,26 @@
-{"compilerOptions":{"target":"ES2022","module":"NodeNext","moduleResolution":"NodeNext","outDir":"dist","rootDir":".","strict":true,"esModuleInterop":true,"skipLibCheck":true,"forceConsistentCasingInFileNames":true},"include":["src/**/*.ts","prisma/**/*.ts","tests/**/*.ts"]}
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "dist",
+    "rootDir": ".",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "server.ts",
+    "seed.ts",
+    "maps.ts",
+    "messaging.ts",
+    "api.test.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "App.tsx",
+    "src/**/*.ts"
+  ]
+}

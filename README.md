@@ -1,70 +1,42 @@
 # MedBridge
+
 Production-oriented medication continuity MVP for India.
 
-## Architecture
-- Backend: Node.js 22 + Express 5 + Prisma 6 + PostgreSQL
-- Mobile: Expo SDK 53 + React Native 0.79
-- Auth: JWT session records with revocation
-- Security: Helmet, strict CORS, rate limiting, Zod validation, bcrypt
-- Data: medicines, requests, pharmacy inventory, reservations, notifications, push tokens, audit logs
+## Repository layout
 
-## Local backend
-1. `cd backend`
-2. `npm install`
-3. `cp .env.example .env` and set `JWT_SECRET`
-4. Start PostgreSQL: `docker compose up -d db`
-5. `npx prisma migrate dev --name init`
-6. `npx prisma migrate deploy`
-7. `npm run seed`
-8. `npm run dev`
+This competition build intentionally uses one root workspace:
+- **API:** `server.ts`, Prisma schema, seed and API tests
+- **Mobile:** `App.tsx`, Expo configuration and RevenueCat integration
+- **Database:** `schema.prisma`
+- **Deployment:** `Dockerfile` and `docker-compose.yml`
 
-API: `http://localhost:4000`
-Health: `/health`, readiness: `/ready`
+## Judge setup
+
+1. Install Node.js 22+.
+2. Run `npm install`.
+3. Copy `.env.example` to `.env` and set `DATABASE_URL` and a JWT secret of at least 32 characters.
+4. Start PostgreSQL with `docker compose up -d db`.
+5. Validate and generate Prisma:
+   - `npm run prisma:validate`
+   - `npm run prisma:generate`
+6. Create/update the database with `npm run db:push`.
+7. Seed demo accounts with `npm run seed`.
+8. Start the API with `npm run api:dev`.
+9. In a second terminal, start Expo with `npm run mobile:start`.
+10. For real Premium purchases, set the public RevenueCat SDK keys and configure the `consumer_premium` entitlement in RevenueCat.
 
 ## Demo accounts
-Patient `9999999999` / `demo1234`
-Pharmacy `8888888888` / `demo1234`
-Admin `7777777777` / `demo1234`
 
-## Production checklist
-- Use managed PostgreSQL and backups.
-- Generate a random JWT secret of at least 32 characters (prefer 64+ cryptographically random characters).
-- Set a strict HTTPS CORS origin.
-- Configure a real Expo/EAS project ID and access token if push notifications are required; do not ship placeholder values.
-- Put the API behind TLS/reverse proxy and a WAF/load balancer.
-- Rotate secrets and enable database monitoring.
-- Review Indian privacy, consent, retention, security, and healthcare requirements with qualified counsel before launch.
+- Patient: `9999999999` / `demo1234`
+- Pharmacy: `8888888888` / `demo1234`
+- Admin: `7777777777` / `demo1234`
 
-## Docker deployment
-1. Copy `.env.example` to `.env` and set strong `POSTGRES_PASSWORD` and `JWT_SECRET`.
-2. Run `docker compose --env-file .env up -d --build`.
-3. Check `GET /health` and `GET /ready`.
-4. Put the API behind HTTPS/reverse proxy before public traffic.
+## Competition monetization
 
-## Mobile production build
-1. In `mobile/.env`, set `EXPO_PUBLIC_API_URL` to the public HTTPS API and `EXPO_PUBLIC_EAS_PROJECT_ID` to the real EAS project ID.
-2. Run `npm install` in `mobile`.
-3. Authenticate with EAS CLI.
-4. Run `npm run build:android` and/or `npm run build:ios`.
+RevenueCat is the single monetization integration:
+- Entitlement: `consumer_premium`
+- Monthly: ₹149
+- Annual: ₹1,499
+- Trial: 3 days, configured in the stores/RevenueCat dashboard
 
-## Important deployment notes
-- Do not use the demo credentials in production.
-- Do not commit `.env` files or secrets.
-- For horizontally scaled API instances, replace the in-memory rate-limit store with a shared store such as Redis.
-- Configure database backups, TLS, monitoring, log aggregation, and secret rotation before launch.
-
-## Debugged refill behavior
-- Customer's existing medicine stock is never reduced when creating a refill request or reservation.
-- Pharmacy inventory is reduced when the reservation is created.
-- Pharmacy inventory is restored if the reservation is cancelled or expires.
-- Patient medicine stock is increased only when the pharmacy marks the reservation as picked up.
-- The mobile refill action stays simple: it prepares a refill request using the medicine's configured quantity and current location.
-
-## UI direction
-The mobile interface keeps the same feature set and navigation, but uses a calm eco-friendly visual system: soft natural background, green active states, high-contrast text, simple cards, and no additional complexity.
-
-## Competition scope
-This student submission intentionally uses RevenueCat-powered mobile in-app purchases as the single monetization integration. Web checkout and RevenueCat Ads are excluded to keep the product focused. Delivery is also excluded. Pharmacies remain free during the hackathon MVP.
-
-## RevenueCat
-Entitlement: `consumer_premium`. Configure monthly ₹149 and annual ₹1,499 store products, with the 3-day trial configured in the stores/RevenueCat dashboard.
+No production secrets are included.
