@@ -13,6 +13,7 @@ import {
   RequestStatus,
   ReservationStatus,
   ResponseStatus,
+  FamilyRole
 } from '@prisma/client';
 import { z } from 'zod';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
@@ -55,7 +56,7 @@ async function createSession(userId:string,role:Role){const raw=crypto.randomByt
 async function auth(req:Req,res:express.Response,next:express.NextFunction){try{const raw=req.headers.authorization?.startsWith('Bearer ')?req.headers.authorization.slice(7):'';if(!raw)return res.status(401).json({error:'Authentication required'});const cut=raw.lastIndexOf('.');const jwtPart=cut>0?raw.slice(0,cut):'';const sessionSecret=cut>0?raw.slice(cut+1):'';if(!jwtPart||!sessionSecret)throw new Error('bad token');const p=jwt.verify(jwtPart,JWT_SECRET) as any;const s=await db.session.findUnique({where:{id:p.sid},include:{user:true}});if(!s||s.revokedAt||s.expiresAt<new Date()||s.tokenHash!==hash(sessionSecret)||!s.user.active)throw new Error('session invalid');req.auth={userId:s.user.id,role:s.user.role,sessionId:s.id};next();}catch{return res.status(401).json({error:'Invalid or expired session'});}}
 function roles(...allowed:Role[]){return (req:Req,res:express.Response,next:express.NextFunction)=>req.auth&&allowed.includes(req.auth.role)?next():res.status(403).json({error:'Forbidden'});}
 async function audit(
- actorUserId: userId: string | undefined,
+  actorUserId: string | undefined,
   action: string,
   entity: string,
   entityId?: string,
@@ -64,7 +65,7 @@ async function audit(
   try {
     await db.auditLog.create({
       data: {
-        userId,
+        actorUserId,
         action,
         entity,
         entityId,
@@ -85,7 +86,46 @@ async function notify(
   title: string,
   body: string,
   data: Prisma.InputJsonValue = {}
-)
+) {
+  const n = await db.notification.create({
+    data: { userId, title, body, data },
+  });
+
+  const tokens = await db.pushToken.findMany({
+    where: { userId },
+  });
+
+  if (tokens.length === 0) return n;
+
+  const messages = tokens.map(t => ({
+    to: t.token,
+    title,
+    body,
+    data,
+    sound: 'default',
+  }));
+
+  try {
+    const r = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(process.env.EXPO_ACCESS_TOKEN
+          ? { Authorization: `Bearer ${process.env.EXPO_ACCESS_TOKEN}` }
+          : {}),
+      },
+      body: JSON.stringify(messages),
+    });
+
+    if (!r.ok) {
+      console.error('Expo push failed', r.status, await r.text());
+    }
+  } catch (e) {
+    console.error('Expo push error', e);
+  }
+
+  return n;
+}
 async function restoreStock(tx:Prisma.TransactionClient,r:any){if(r.stockRestoredAt)return;const req=await tx.medicineRequest.findUnique({where:{id:r.requestId},include:{medicine:true}});if(!req)return;const restored=await tx.inventory.updateMany({where:{pharmacyId:r.pharmacyId,medicineName:req.medicine.name},data:{quantity:{increment:r.quantity}}});if(restored.count!==1)throw new Error('Inventory record missing; cannot restore stock');await tx.reservation.update({where:{id:r.id},data:{stockRestoredAt:new Date(),activeKey:null}});}
 async function expire(){const now=new Date();const expiredReq=await db.medicineRequest.findMany({where:{status:RequestStatus.OPEN,expiresAt:{lt:now}},select:{id:true,userId:true,medicineId:true}});for(const r of expiredReq){await db.medicineRequest.updateMany({where:{id:r.id,status:RequestStatus.OPEN},data:{status:RequestStatus.EXPIRED,activeKey:null}});await notify(r.userId,'Request expired','Your medicine request expired.');}
  const expired=await db.reservation.findMany({where:{status:ReservationStatus.ACTIVE,expiresAt:{lt:now}}});for(const r of expired){await db.$transaction(async tx=>{const cur=await tx.reservation.findUnique({where:{id:r.id}});if(!cur||cur.status!==ReservationStatus.ACTIVE)return;await restoreStock(tx,cur);await tx.reservation.update({where:{id:r.id},data:{status:ReservationStatus.EXPIRED,activeKey:null}});const req=await tx.medicineRequest.findUnique({where:{id:r.requestId}});if(req)await tx.medicineRequest.update({where:{id:req.id},data:{status:RequestStatus.OPEN,activeKey:`${req.userId}:${req.medicineId}`}});});await notify(r.userId,'Reservation expired','Your reservation expired and the medicine was released.');}}
