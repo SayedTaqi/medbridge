@@ -1,0 +1,10 @@
+{
+  "package": "MedBridge Unified Project Package",
+  "source": "MEDBRIDGE_FINAL_COMPETITION_SOURCE.zip",
+  "assets": "MEDBRIDGE_SUBMISSION_ASSETS.zip",
+  "fix_pack": "MedBridge_10_Sections_FIXED.zip",
+  "legacy_fix": "medbridge-competition-fix.zip",
+  "sections": 4,
+  "ten_audited_areas_included": true,
+  "original_source_preserved": true
+}

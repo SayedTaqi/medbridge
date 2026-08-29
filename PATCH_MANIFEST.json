@@ -1,0 +1,6 @@
+{
+  "type": "MedBridge 10-section fix pack",
+  "status": "FIXED",
+  "sections": 10,
+  "note": "Configuration/audit fixes only; original application source is not included."
+}

@@ -1,0 +1,28 @@
+{
+  "type": "MedBridge GitHub fix pack",
+  "status": "PATCH_BUNDLE_NOT_FULL_REPOSITORY",
+  "reason": "The GitHub connector is currently not invokable for this session, so the complete repository bytes cannot be exported. This bundle contains the validated configuration/documentation fixes and audit tooling that can be applied to the existing repository.",
+  "confirmed_source_files_seen": [
+    "App.tsx",
+    "server.ts",
+    "COMPETITION_SUBMISSION.md",
+    "maps.ts",
+    "messaging.ts",
+    "seed.ts"
+  ],
+  "files": [
+    ".env.example",
+    ".github/workflows/ci.yml",
+    ".gitignore",
+    "Dockerfile",
+    "docker-compose.yml",
+    "docs/GITHUB_FIX_PLAN.md",
+    "docs/REPO_LAYOUT.md",
+    "docs/TERMUX_PROOT_DEBUG.md",
+    "prisma.config.ts",
+    "prisma/migrations/00000000000000_baseline/README.md",
+    "scripts/audit-repo.sh",
+    "tsconfig.backend.json",
+    "tsconfig.mobile.json"
+  ]
+}

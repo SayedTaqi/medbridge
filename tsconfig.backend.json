@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "sourceMap": true,
+    "types": ["node"]
+  },
+  "include": [
+    "server.ts",
+    "seed.ts",
+    "maps.ts",
+    "messaging.ts",
+    "storage.ts",
+    "notifications.ts",
+    "prisma.config.ts",
+    "scripts/**/*.ts"
+  ]
+}
