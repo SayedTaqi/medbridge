@@ -1,5 +1,11 @@
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
 enum Role { PATIENT PHARMACY ADMIN }
 enum RequestStatus { OPEN FULFILLED EXPIRED CANCELLED }
@@ -31,6 +37,7 @@ model User {
   documents UserDocument[]
   travelMode TravelMode?
 }
+
 model Session {
   id String @id @default(cuid())
   userId String
@@ -41,6 +48,7 @@ model Session {
   user User @relation(fields:[userId],references:[id],onDelete:Cascade)
   @@index([userId,revokedAt])
 }
+
 model Medicine {
   id String @id @default(cuid())
   userId String
@@ -57,6 +65,7 @@ model Medicine {
   reminders Reminder[]
   @@index([userId,nextRefillDate])
 }
+
 model Pharmacy {
   id String @id @default(cuid())
   userId String @unique
@@ -72,6 +81,7 @@ model Pharmacy {
   inventory Inventory[]
   @@index([verified])
 }
+
 model Inventory {
   id String @id @default(cuid())
   pharmacyId String
@@ -83,6 +93,7 @@ model Inventory {
   @@unique([pharmacyId,medicineName])
   @@index([medicineName])
 }
+
 model MedicineRequest {
   id String @id @default(cuid())
   userId String
@@ -101,6 +112,7 @@ model MedicineRequest {
   @@index([userId,status,createdAt])
   @@index([status,expiresAt])
 }
+
 model AvailabilityResponse {
   id String @id @default(cuid())
   requestId String
@@ -115,6 +127,7 @@ model AvailabilityResponse {
   @@unique([requestId,pharmacyId])
   @@index([pharmacyId,status])
 }
+
 model Reservation {
   id String @id @default(cuid())
   requestId String
@@ -137,6 +150,7 @@ model Reservation {
   @@index([pharmacyId,status,createdAt])
   @@index([status,expiresAt])
 }
+
 model Notification {
   id String @id @default(cuid())
   userId String
@@ -148,6 +162,7 @@ model Notification {
   user User @relation(fields:[userId],references:[id],onDelete:Cascade)
   @@index([userId,readAt,createdAt])
 }
+
 model PushToken {
   id String @id @default(cuid())
   userId String
@@ -158,6 +173,7 @@ model PushToken {
   user User @relation(fields:[userId],references:[id],onDelete:Cascade)
   @@index([userId])
 }
+
 model AuditLog {
   id String @id @default(cuid())
   actorUserId String?
@@ -193,6 +209,7 @@ model Subscription {
   user User @relation(fields:[userId],references:[id],onDelete:Cascade)
   @@index([userId,status])
 }
+
 model FamilyMember {
   id String @id @default(cuid())
   ownerId String
@@ -206,6 +223,7 @@ model FamilyMember {
   member User @relation("FamilyMember",fields:[memberId],references:[id],onDelete:Cascade)
   @@unique([ownerId,memberId])
 }
+
 model UserDocument {
   id String @id @default(cuid())
   userId String
@@ -218,6 +236,7 @@ model UserDocument {
   user User @relation(fields:[userId],references:[id],onDelete:Cascade)
   @@index([userId,type,createdAt])
 }
+
 model Reminder {
   id String @id @default(cuid())
   userId String
@@ -233,6 +252,7 @@ model Reminder {
   medicine Medicine @relation(fields:[medicineId],references:[id],onDelete:Cascade)
   @@index([userId,enabled])
 }
+
 model TravelMode {
   id String @id @default(cuid())
   userId String @unique
