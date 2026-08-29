@@ -7,10 +7,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role { PATIENT PHARMACY ADMIN }
-enum RequestStatus { OPEN FULFILLED EXPIRED CANCELLED }
-enum ResponseStatus { AVAILABLE NOT_AVAILABLE CAN_ORDER }
-enum ReservationStatus { ACTIVE PICKED_UP CANCELLED EXPIRED }
+enum Role {
+  PATIENT
+  PHARMACY
+  ADMIN
+}
+
+enum RequestStatus {
+  OPEN
+  FULFILLED
+  EXPIRED
+  CANCELLED
+}
+
+enum ResponseStatus {
+  AVAILABLE
+  NOT_AVAILABLE
+  CAN_ORDER
+}
+
+enum ReservationStatus {
+  ACTIVE
+  PICKED_UP
+  CANCELLED
+  EXPIRED
+}
 
 model User {
   id String @id @default(cuid())
@@ -187,10 +208,28 @@ model AuditLog {
   @@index([entity,entityId,createdAt])
 }
 
-enum SubscriptionStatus { TRIALING ACTIVE PAST_DUE CANCELLED EXPIRED }
-enum PlanType { CONSUMER_PREMIUM PHARMACY_PRO }
-enum FamilyRole { FAMILY CAREGIVER }
-enum DocumentType { PRESCRIPTION PHARMACY_LICENSE }
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+enum PlanType {
+  CONSUMER_PREMIUM
+  PHARMACY_PRO
+}
+
+enum FamilyRole {
+  FAMILY
+  CAREGIVER
+}
+
+enum DocumentType {
+  PRESCRIPTION
+  PHARMACY_LICENSE
+}
 
 model Subscription {
   id String @id @default(cuid())
