@@ -8,13 +8,15 @@ Production-oriented medication continuity MVP for India.
 - Security: Helmet, strict CORS, rate limiting, Zod validation, bcrypt
 - Data: medicines, requests, pharmacy inventory, reservations, notifications, push tokens, audit logs
 
-## Local backend
-1. `cd backend`
-2. `npm install`
-3. `cp .env.example .env` and set `JWT_SECRET`
-4. Start PostgreSQL: `docker compose up -d db`
-5. `npx prisma migrate dev --name init`
-6. `npx prisma migrate deploy`
+## Local backend (development)
+1. From the repository root: `npm install`
+2. Copy `.env.example` to `.env` and set `JWT_SECRET`.
+   - For production: JWT_SECRET must be at least 32 characters.
+   - For local development the branch allows a shorter secret but use a strong secret for production.
+3. Start PostgreSQL: `docker compose up -d db`
+4. `npx prisma migrate dev --name init` (creates local dev migrations)
+5. `npx prisma validate --schema=./schema.prisma`
+6. `npx prisma generate --schema=./schema.prisma`
 7. `npm run seed`
 8. `npm run dev`
 
@@ -61,10 +63,10 @@ Admin `7777777777` / `demo1234`
 - The mobile refill action stays simple: it prepares a refill request using the medicine's configured quantity and current location.
 
 ## UI direction
-The mobile interface keeps the same feature set and navigation, but uses a calm eco-friendly visual system: soft natural background, green active states, high-contrast text, simple cards, and no additional complexity.
+The mobile interface keeps the same feature set and navigation, but uses a calm eco-friendly visual system: soft natural background, green active states, high-contrast text, simple cards, and no aggressive colors.
 
 ## Competition scope
-This student submission intentionally uses RevenueCat-powered mobile in-app purchases as the single monetization integration. Web checkout and RevenueCat Ads are excluded to keep the product focused. Delivery is also excluded. Pharmacies remain free during the hackathon MVP.
+This student submission intentionally uses RevenueCat-powered mobile in-app purchases as the single monetization integration. Web checkout and RevenueCat Ads are excluded to keep the product focused.
 
 ## RevenueCat
 Entitlement: `consumer_premium`. Configure monthly ₹149 and annual ₹1,499 store products, with the 3-day trial configured in the stores/RevenueCat dashboard.
