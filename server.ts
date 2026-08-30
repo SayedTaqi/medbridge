@@ -39,29 +39,103 @@ const phone=z.string().regex(/^[6-9]\d{9}$/);
 const id=z.string().min(1).max(100);
 type Req=express.Request & {auth?:{userId:string;role:Role;sessionId:string}};
 const hash=(v:string)=>crypto.createHash('sha256').update(v).digest('hex');
-const publicUser=(u:any)=>({id:u.id,name:u.name,phone:u.phone,role:u.role,active:u.active,pharmacy:u.pharmacy??null});
-function distanceKm(aLat:number,aLng:number,bLat:number,bLng:number){const R=6371,r=Math.PI/180,dLat=(bLat-aLat)*r,dLng=(bLng-aLng)*r;const x=Math.sin(dLat/2)**2+Math.cos(aLat*r)*Math.cos(bLat*r)*[...[...]
-function daysRemaining(remaining:number,doses:number){if(!Number.isFinite(remaining)||!Number.isFinite(doses)||doses<=0)return 0;return remaining<=0?0:Math.ceil(remaining/doses);} 
-function sign(userId:string,role:Role,sessionId:string){return jwt.sign({sub:userId,role,sid:sessionId},JWT_SECRET,{expiresIn:'7d'});} 
-async function createSession(userId:string,role:Role){const raw=crypto.randomBytes(32).toString('hex');const s=await db.session.create({data:{userId,tokenHash:hash(raw),expiresAt:new Date(Date.now[...[...]
+const publicUser=(u:any)=>({id:u.id,name:u.name,phone:u.phone,role:u.role,active:u.active,pharmacy:u.pharmacy??null})
+function distanceKm(
+  aLat: number,
+  aLng: number,
+  bLat: number,
+  bLng: number
+): number {
+  const R = 6371;
+  const r = Math.PI / 180;
+
+  const dLat = (bLat - aLat) * r;
+  const dLng = (bLng - aLng) * r;
+
+  const x =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(aLat * r) *
+      Math.cos(bLat * r) *
+      Math.sin(dLng / 2) ** 2;
+
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+
+function daysRemaining(remaining: number, doses: number): number {
+  if (
+    !Number.isFinite(remaining) ||
+    !Number.isFinite(doses) ||
+    doses <= 0
+  ) {
+    return 0;
+  }
+
+  return remaining <= 0 ? 0 : Math.ceil(remaining / doses);
+}
+
+function sign(
+  userId: string,
+  role: Role,
+  sessionId: string
+): string {
+  return jwt.sign(
+    {
+      sub: userId,
+      role,
+      sid: sessionId,
+    },
+    JWT_SECRET,
+    {
+      expiresIn: '7d',
+    }
+  );
+}
+
+async function createSession(
+  userId: string,
+  role: Role
+): Promise<{ token: string; sessionId: string }> {
+  const raw = crypto.randomBytes(32).toString('hex');
+
+  const session = await db.session.create({
+    data: {
+      userId,
+      tokenHash: hash(raw),
+      expiresAt: new Date(
+  Date.now() + 7 * 24 * 60 * 60 * 1000
+),
+    },
+  });
+
+  return {
+    token: sign(userId, role, session.id),
+    sessionId: session.id,
+  };
+}
 async function auth(
   req: Req,
   res: express.Response,
   next: express.NextFunction
-) {
+): Promise<void> {
   try {
-    const raw = req.headers.authorization?.startsWith('Bearer ')
-      ? req.headers.authorization.slice(7).trim()
-      : '';
+    const authorization = req.headers.authorization;
+
+    const raw =
+      authorization?.startsWith('Bearer ')
+        ? authorization.slice(7).trim()
+        : '';
 
     if (!raw) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
 
     const tokenHash = hash(raw);
 
     const session = await db.session.findUnique({
-      where: { tokenHash },
+      where: {
+        tokenHash,
+      },
       include: {
         user: {
           select: {
@@ -74,19 +148,23 @@ async function auth(
     });
 
     if (!session) {
-      return res.status(401).json({ error: 'Invalid session' });
+      res.status(401).json({ error: 'Invalid session' });
+      return;
     }
 
     if (session.revokedAt) {
-      return res.status(401).json({ error: 'Session revoked' });
+      res.status(401).json({ error: 'Session revoked' });
+      return;
     }
 
     if (session.expiresAt <= new Date()) {
-      return res.status(401).json({ error: 'Session expired' });
+      res.status(401).json({ error: 'Session expired' });
+      return;
     }
 
     if (!session.user.active) {
-      return res.status(403).json({ error: 'Account inactive' });
+      res.status(403).json({ error: 'Account inactive' });
+      return;
     }
 
     req.auth = {
@@ -95,9 +173,9 @@ async function auth(
       sessionId: session.id,
     };
 
-    return next();
-  } catch (e) {
-    return next(e);
+    next();
+  } catch (error) {
+    next(error);
   }
 }
 async function audit(
