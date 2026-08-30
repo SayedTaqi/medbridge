@@ -41,14 +41,41 @@ type Req=express.Request & {auth?:{userId:string;role:Role;sessionId:string}};
 const hash=(v:string)=>crypto.createHash('sha256').update(v).digest('hex');
 const publicUser=(u:any)=>({id:u.id,name:u.name,phone:u.phone,role:u.role,active:u.active,pharmacy:u.pharmacy??null});
 function distanceKm(aLat:number,aLng:number,bLat:number,bLng:number){const R=6371,r=Math.PI/180,dLat=(bLat-aLat)*r,dLng=(bLng-aLng)*r;const x=Math.sin(dLat/2)**2+Math.cos(aLat*r)*Math.cos(bLat*r)*Math.sin(dLng/2)**2;return 2*R*Math.asin(Math.sqrt(x));}
-function daysRemaining(remaining:number,doses:number){if(!Number.isFinite(remaining)||!Number.isFinite(doses)||doses<=0)return 0;return remaining<=0?0:Math.ceil(remaining/doses);}
+function daysRemaining(remaining:number,doses:number){if(!Number.isFinite(remaining)||!Number.isFinite(doses)||doses<=0)return 0;return remaining<=0?0:Math.ceil(remaining/doses);} 
 function sign(userId:string,role:Role,sessionId:string){return jwt.sign({sub:userId,role,sid:sessionId},JWT_SECRET,{expiresIn:'7d'});} 
-async function createSession(userId:string,role:Role){const raw=crypto.randomBytes(32).toString('hex');const s=await db.session.create({data:{userId,tokenHash:hash(raw),expiresAt:new Date(Date.now()+7*24*60*60*1000)}});return {sessionId:s.id,token:raw};}
-async function auth(req:Req,res:express.Response,next:express.NextFunction){try{const raw=req.headers.authorization?.startsWith('Bearer ')?req.headers.authorization.slice(7):'';if(!raw)return res.status(401).json({error:'Unauthorized'});const payload=jwt.verify(raw,JWT_SECRET) as any;const sid=payload.sid as string;const sess=await db.session.findUnique({where:{id:sid}});if(!sess||sess.revokedAt||sess.expiresAt<new Date())return res.status(401).json({error:'Unauthorized'});req.auth={userId:payload.sub,role:payload.role,sessionId:sess.id};next();}catch(e){return res.status(401).json({error:'Unauthorized'});}}
+async function createSession(userId:string,role:Role){const raw=crypto.randomBytes(32).toString('hex');const s=await db.session.create({data:{userId,tokenHash:hash(raw),expiresAt:new Date(Date.now()+7*24*60*60*1000)}});return {token:raw,id:s.id};}
+async function auth(req:Req,res:express.Response,next:express.NextFunction){try{const raw=req.headers.authorization?.startsWith('Bearer ')?req.headers.authorization.slice(7):'';if(!raw)return res.status(401).json({error:'Unauthorized'});const h=hash(raw);const session=await db.session.findFirst({where:{tokenHash:h,revokedAt:null}});if(!session)return res.status(401).json({error:'Unauthorized'});req.auth={userId:session.userId,role:session.role as Role,sessionId:session.id};next();}catch(e){console.error('auth error',e);res.status(500).json({error:'Internal server error'});}}
 function roles(...allowed:Role[]){return (req:Req,res:express.Response,next:express.NextFunction)=>req.auth&&allowed.includes(req.auth.role)?next():res.status(403).json({error:'Forbidden'});} 
-async function audit(actorUserId:string|undefined,action:string,entity:string,entityId?:string,metadata?:unknown){try{await db.auditLog.create({data:{actorUserId,action,entity,entityId,metadata}});}catch(e){console.error('audit failed',e);}} 
-async function notify(userId:string,title:string,body:string,data:Record<string,unknown>={}){const n=await db.notification.create({data:{userId,title,body,data}});const tokens=await db.pushToken.findMany({where:{userId}});for(const t of tokens){/* push logic omitted for brevity */}return n;}
-async function restoreStock(tx:Prisma.TransactionClient,r:any){if(r.stockRestoredAt)return;const req=await tx.medicineRequest.findUnique({where:{id:r.requestId},include:{medicine:true}});if(!req)return;await tx.inventory.updateMany({where:{pharmacyId:r.pharmacyId,medicineName:req.medicine.name},data:{quantity:{increment:r.quantity}}});await tx.reservation.update({where:{id:r.id},data:{stockRestoredAt:new Date()}});}
+
+async function audit(actorUserId:string|undefined,action:string,entity:string,entityId?:string,metadata?:unknown){
+  try{
+    await db.auditLog.create({
+      data:{
+        actorUserId,
+        action,
+        entity,
+        entityId,
+        metadata: metadata == null ? undefined : JSON.parse(JSON.stringify(metadata)),
+      }
+    });
+  }catch(e){console.error('audit failed',e);} 
+} 
+
+async function notify(userId:string,title:string,body:string,data:Record<string,unknown>={}){
+  const n = await db.notification.create({
+    data: {
+      userId,
+      title,
+      body,
+      data: data == null ? undefined : JSON.parse(JSON.stringify(data)),
+    }
+  });
+  const tokens = await db.pushToken.findMany({where:{userId}});
+  for(const t of tokens){/* push logic omitted for brevity */}
+  return n;
+}
+
+async function restoreStock(tx:Prisma.TransactionClient,r:any){if(r.stockRestoredAt)return;const req=await tx.medicineRequest.findUnique({where:{id:r.requestId},include:{medicine:true}});if(!req)return;await tx.inventory.updateMany({where:{pharmacyId:r.pharmacyId,medicineName:req.medicine.name},data:{quantity:{increment:r.quantity}}});await tx.reservation.update({where:{id:r.id},data:{stockRestoredAt:new Date()}});} 
 async function expire(){const now=new Date();const expiredReq=await db.medicineRequest.findMany({where:{status:RequestStatus.OPEN,expiresAt:{lt:now}},select:{id:true,userId:true,medicineId:true}});for(const er of expiredReq){await db.medicineRequest.update({where:{id:er.id},data:{status:RequestStatus.EXPIRED}});} const expired=await db.reservation.findMany({where:{status:ReservationStatus.ACTIVE,expiresAt:{lt:now}}});for(const r of expired){await db.$transaction(async tx=>{await restoreStock(tx,r);await tx.reservation.update({where:{id:r.id},data:{status:ReservationStatus.EXPIRED}});});}}
 
 app.get('/health',(_req,res)=>res.json({ok:true,service:'medbridge-api',time:new Date().toISOString()}));
@@ -60,7 +87,7 @@ app.post('/auth/logout',auth,async(req:Req,res)=>{await db.session.update({where
 
 app.use((_req,res)=>res.status(404).json({error:'Route not found'}));
 
-app.use((err:any,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{console.error(err);if(err instanceof z.ZodError)return res.status(400).json({error:'Invalid input',details:err.errors});res.status(500).json({error:'Internal server error'});});
+app.use((err:any,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{console.error(err);if(err instanceof z.ZodError){return res.status(400).json({errors:err.issues});}res.status(500).json({error:'Internal server error'});});
 
 let server: ReturnType<typeof app.listen> | undefined;
 const shutdown=async()=>{await db.$disconnect();if(server)server.close(()=>process.exit(0));else process.exit(0);};
