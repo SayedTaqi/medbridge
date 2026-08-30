@@ -43,7 +43,7 @@ const publicUser=(u:any)=>({id:u.id,name:u.name,phone:u.phone,role:u.role,active
 function distanceKm(aLat:number,aLng:number,bLat:number,bLng:number){const R=6371,r=Math.PI/180,dLat=(bLat-aLat)*r,dLng=(bLng-aLng)*r;const x=Math.sin(dLat/2)**2+Math.cos(aLat*r)*Math.cos(bLat*r)*[...]
 function daysRemaining(remaining:number,doses:number){if(!Number.isFinite(remaining)||!Number.isFinite(doses)||doses<=0)return 0;return remaining<=0?0:Math.ceil(remaining/doses);} 
 function sign(userId:string,role:Role,sessionId:string){return jwt.sign({sub:userId,role,sid:sessionId},JWT_SECRET,{expiresIn:'7d'});} 
-async function createSession(userId:string,role:Role){const raw=crypto.randomBytes(32).toString('hex');const s=await db.session.create({data:{userId,tokenHash:hash(raw),expiresAt:new Date(Date.now()[...]
+async function createSession(userId:string,role:Role){const raw=crypto.randomBytes(32).toString('hex');const s=await db.session.create({data:{userId,tokenHash:hash(raw),expiresAt:new Date(Date.now[...]
 async function auth(
   req: Req,
   res: express.Response,
@@ -100,19 +100,30 @@ async function auth(
     return next(e);
   }
 }
-async function audit(actorUserId:string|undefined,action:string,entity:string,entityId?:string,metadata?:unknown){
-  try{
+async function audit(
+  actorUserId: string | undefined,
+  action: string,
+  entity: string,
+  entityId?: string,
+  metadata?: unknown
+) {
+  try {
     await db.auditLog.create({
-      data:{
+      data: {
         actorUserId,
         action,
         entity,
         entityId,
-        metadata: metadata == null ? undefined : JSON.parse(JSON.stringify(metadata)),
-      }
+        metadata:
+          metadata == null
+            ? undefined
+            : JSON.parse(JSON.stringify(metadata)),
+      },
     });
-  }catch(e){console.error('audit failed',e);} 
-} 
+  } catch (e) {
+    console.error('audit failed', e);
+  }
+}
 
 async function notify(userId:string,title:string,body:string,data:Record<string,unknown>={}){
   const n = await db.notification.create({
@@ -128,13 +139,13 @@ async function notify(userId:string,title:string,body:string,data:Record<string,
   return n;
 }
 
-async function restoreStock(tx:Prisma.TransactionClient,r:any){if(r.stockRestoredAt)return;const req=await tx.medicineRequest.findUnique({where:{id:r.requestId},include:{medicine:true}});if(!req)r[...]
+async function restoreStock(tx:Prisma.TransactionClient,r:any){if(r.stockRestoredAt)return;const req=await tx.medicineRequest.findUnique({where:{id:r.requestId},include:{medicine:true}});if(!req)[...]
 async function expire(){const now=new Date();const expiredReq=await db.medicineRequest.findMany({where:{status:RequestStatus.OPEN,expiresAt:{lt:now}},select:{id:true,userId:true,medicineId:true}})[...]
 
 app.get('/health',(_req,res)=>res.json({ok:true,service:'medbridge-api',time:new Date().toISOString()}));
 app.get('/ready',async(_req,res)=>{try{await db.$queryRaw`SELECT 1`;res.json({ready:true});}catch{res.status(503).json({ready:false});}});
 
-app.post('/auth/register',authLimiter,async(req,res,next)=>{try{const p=z.object({name:z.string().trim().min(2).max(80),phone:z.string().regex(/^[6-9]\d{9}$/),password:z.string().min(8).max(72),ro[...]
+app.post('/auth/register',authLimiter,async(req,res,next)=>{try{const p=z.object({name:z.string().trim().min(2).max(80),phone:z.string().regex(/^[6-9]\d{9}$/),password:z.string().min(8).max(72),r[...]
 app.post('/auth/login',authLimiter,async(req,res,next)=>{try{const p=z.object({phone:z.string().regex(/^[6-9]\d{9}$/),password:z.string().min(1)}).parse(req.body);const u=await db.user.findUnique[...]
 app.post('/auth/logout',auth,async(req:Req,res)=>{await db.session.update({where:{id:req.auth!.sessionId},data:{revokedAt:new Date()}});res.status(204).send();});
 
