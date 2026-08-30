@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { distanceKm, daysRemaining } from '../src/server.js';
+import { distanceKm, daysRemaining } from './server';
 
 test('distance is zero for same coordinates', () => assert.equal(distanceKm(34,74,34,74), 0));
 test('distance is symmetric', () => assert.ok(Math.abs(distanceKm(34,74,35,75)-distanceKm(35,75,34,74)) < 1e-9));
