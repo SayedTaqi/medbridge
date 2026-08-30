@@ -43,7 +43,7 @@ const publicUser=(u:any)=>({id:u.id,name:u.name,phone:u.phone,role:u.role,active
 function distanceKm(aLat:number,aLng:number,bLat:number,bLng:number){const R=6371,r=Math.PI/180,dLat=(bLat-aLat)*r,dLng=(bLng-aLng)*r;const x=Math.sin(dLat/2)**2+Math.cos(aLat*r)*Math.cos(bLat*r)*[...]
 function daysRemaining(remaining:number,doses:number){if(!Number.isFinite(remaining)||!Number.isFinite(doses)||doses<=0)return 0;return remaining<=0?0:Math.ceil(remaining/doses);} 
 function sign(userId:string,role:Role,sessionId:string){return jwt.sign({sub:userId,role,sid:sessionId},JWT_SECRET,{expiresIn:'7d'});} 
-async function createSession(userId:string,role:Role){const raw=crypto.randomBytes(32).toString('hex');const s=await db.session.create({data:{userId,tokenHash:hash(raw),expiresAt:new Date(Date.now[...]
+async function createSession(userId:string,role:Role){const raw=crypto.randomBytes(32).toString('hex');const s=await db.session.create({data:{userId,tokenHash:hash(raw),expiresAt:new Date(Date.now()[...]
 async function auth(
   req: Req,
   res: express.Response,
@@ -125,17 +125,29 @@ async function audit(
   }
 }
 
-async function notify(userId:string,title:string,body:string,data:Record<string,unknown>={}){
+async function notify(
+  userId: string,
+  title: string,
+  body: string,
+  data: Record<string, unknown> = {}
+) {
   const n = await db.notification.create({
     data: {
       userId,
       title,
       body,
-      data: data == null ? undefined : JSON.parse(JSON.stringify(data)),
-    }
+      data: JSON.parse(JSON.stringify(data)),
+    },
   });
-  const tokens = await db.pushToken.findMany({where:{userId}});
-  for(const t of tokens){/* push logic omitted for brevity */}
+
+  const tokens = await db.pushToken.findMany({
+    where: { userId },
+  });
+
+  for (const _token of tokens) {
+    // Push notification provider can be added here.
+  }
+
   return n;
 }
 
@@ -145,7 +157,7 @@ async function expire(){const now=new Date();const expiredReq=await db.medicineR
 app.get('/health',(_req,res)=>res.json({ok:true,service:'medbridge-api',time:new Date().toISOString()}));
 app.get('/ready',async(_req,res)=>{try{await db.$queryRaw`SELECT 1`;res.json({ready:true});}catch{res.status(503).json({ready:false});}});
 
-app.post('/auth/register',authLimiter,async(req,res,next)=>{try{const p=z.object({name:z.string().trim().min(2).max(80),phone:z.string().regex(/^[6-9]\d{9}$/),password:z.string().min(8).max(72),r[...]
+app.post('/auth/register',authLimiter,async(req,res,next)=>{try{const p=z.object({name:z.string().trim().min(2).max(80),phone:z.string().regex(/^[6-9]\d{9}$/),password:z.string().min(8).max(72),ro[...]
 app.post('/auth/login',authLimiter,async(req,res,next)=>{try{const p=z.object({phone:z.string().regex(/^[6-9]\d{9}$/),password:z.string().min(1)}).parse(req.body);const u=await db.user.findUnique[...]
 app.post('/auth/logout',auth,async(req:Req,res)=>{await db.session.update({where:{id:req.auth!.sessionId},data:{revokedAt:new Date()}});res.status(204).send();});
 
