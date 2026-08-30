@@ -150,19 +150,64 @@ async function notify(
 
   return n;
 }
+app.get('/health', (_req, res) =>
+  res.json({
+    ok: true,
+    service: 'medbridge-api',
+    time: new Date().toISOString(),
+  })
+);
 
-app.get('/health',(_req,res)=>res.json({ok:true,service:'medbridge-api',time:new Date().toISOString()}));
-app.get('/ready',async(_req,res)=>{try{await db.$queryRaw`SELECT 1`;res.json({ready:true});}catch{res.status(503).json({ready:false});}});
+app.get('/ready', async (_req, res) => {
+  try {
+    await db.$queryRaw`SELECT 1`;
+    return res.json({ ready: true });
+  } catch {
+    return res.status(503).json({ ready: false });
+  }
+});
 
-app.post('/auth/register',authLimiter,async(req,res,next)=>{try{const p=z.object({name:z.string().trim().min(2).max(80),phone:z.string().regex(/^[6-9]\d{9}$/),password:z.string().min(8).max(72),r[...[...]
-app.post('/auth/login',authLimiter,async(req,res,next)=>{try{const p=z.object({phone:z.string().regex(/^[6-9]\d{9}$/),password:z.string().min(1)}).parse(req.body);const u=await db.user.findUnique([...[...]
-app.post('/auth/logout',auth,async(req:Req,res)=>{await db.session.update({where:{id:req.auth!.sessionId},data:{revokedAt:new Date()}});res.status(204).send();});
+app.use((_req, res) =>
+  res.status(404).json({ error: 'Route not found' })
+);
 
-app.use((_req,res)=>res.status(404).json({error:'Route not found'}));
+app.use(
+  (
+    err: any,
+    _req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction
+  ) => {
+    console.error(err);
 
-app.use((err:any,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{console.error(err);if(err instanceof z.ZodError){return res.status(400).json({errors:err.issues});}res.stat[...[...]
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ errors: err.issues });
+    }
+
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+);
 
 let server: ReturnType<typeof app.listen> | undefined;
-const shutdown=async()=>{await db.$disconnect();if(server)server.close(()=>process.exit(0));else process.exit(0);};
-if(process.env.NODE_ENV !== 'test'){server=app.listen(PORT,()=>console.log(`MEDBRIDGE API listening on :${PORT}`));process.on('SIGINT',shutdown);process.on('SIGTERM',shutdown);} 
+
+const shutdown = async () => {
+  await db.$disconnect();
+
+  if (server) {
+    server.close(() => process.exit(0));
+  } else {
+    process.exit(0);
+  }
+};
+
+if (process.env.NODE_ENV !== 'test') {
+  server = app.listen(PORT, () =>
+    console.log(`MEDBRIDGE API listening on :${PORT}`)
+  );
+
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+}
+
 export { app, db, distanceKm, daysRemaining };
+
