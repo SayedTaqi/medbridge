@@ -44,9 +44,62 @@ function distanceKm(aLat:number,aLng:number,bLat:number,bLng:number){const R=637
 function daysRemaining(remaining:number,doses:number){if(!Number.isFinite(remaining)||!Number.isFinite(doses)||doses<=0)return 0;return remaining<=0?0:Math.ceil(remaining/doses);} 
 function sign(userId:string,role:Role,sessionId:string){return jwt.sign({sub:userId,role,sid:sessionId},JWT_SECRET,{expiresIn:'7d'});} 
 async function createSession(userId:string,role:Role){const raw=crypto.randomBytes(32).toString('hex');const s=await db.session.create({data:{userId,tokenHash:hash(raw),expiresAt:new Date(Date.now[...]
-async function auth(req:Req,res:express.Response,next:express.NextFunction){try{const raw=req.headers.authorization?.startsWith('Bearer ')?req.headers.authorization.slice(7):'';if(!raw)return res.status(401).json({error:'Unauthorized'});const tokenHash=hash(raw);const session=await db.session.findUnique({where:{tokenHash},include:{user:true}});if(!session)return res.status(401).json({error:'Invalid session'});return res.json({id:session.id,userId:session.userId,role:session.user.role});}catch(e){next(e);}} 
-function roles(...allowed:Role[]){return (req:Req,res:express.Response,next:express.NextFunction)=>req.auth&&allowed.includes(req.auth.role)?next():res.status(403).json({error:'Forbidden'});} 
+async function auth(
+  req: Req,
+  res: express.Response,
+  next: express.NextFunction
+) {
+  try {
+    const raw = req.headers.authorization?.startsWith('Bearer ')
+      ? req.headers.authorization.slice(7).trim()
+      : '';
 
+    if (!raw) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const tokenHash = hash(raw);
+
+    const session = await db.session.findUnique({
+      where: { tokenHash },
+      include: {
+        user: {
+          select: {
+            id: true,
+            role: true,
+            active: true,
+          },
+        },
+      },
+    });
+
+    if (!session) {
+      return res.status(401).json({ error: 'Invalid session' });
+    }
+
+    if (session.revokedAt) {
+      return res.status(401).json({ error: 'Session revoked' });
+    }
+
+    if (session.expiresAt <= new Date()) {
+      return res.status(401).json({ error: 'Session expired' });
+    }
+
+    if (!session.user.active) {
+      return res.status(403).json({ error: 'Account inactive' });
+    }
+
+    req.auth = {
+      userId: session.user.id,
+      role: session.user.role,
+      sessionId: session.id,
+    };
+
+    return next();
+  } catch (e) {
+    return next(e);
+  }
+}
 async function audit(actorUserId:string|undefined,action:string,entity:string,entityId?:string,metadata?:unknown){
   try{
     await db.auditLog.create({
