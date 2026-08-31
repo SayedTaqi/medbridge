@@ -56,3 +56,6 @@
     "typescript": "5.8.3"
   }
 }
+"devDependencies": {
+  "@react-native-community/cli": "latest"
+}
