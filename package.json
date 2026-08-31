@@ -54,8 +54,5 @@
     "prisma": "6.0.0",
     "tsx": "4.19.3",
     "typescript": "5.8.3"
-  }
-}
-"devDependencies": {
   "@react-native-community/cli": "latest"
 }
