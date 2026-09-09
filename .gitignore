@@ -19,3 +19,8 @@ yarn-error.log*
 **/.gradle/
 # macOS
 *.DS_Store
+android/app/build/
+android/.cxx/
+android/build/
+node_modules/
+.expo/
