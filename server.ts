@@ -1,3 +1,4 @@
+import { startAutoExpiryJobs } from "./cronWorker";
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
@@ -279,7 +280,8 @@ const shutdown = async () => {
 };
 
 if (process.env.NODE_ENV !== 'test') {
-  server = app.listen(PORT, () =>
+  server = app.listen(PORT, ();
+startAutoExpiryJobs(); =>
     console.log(`MEDBRIDGE API listening on :${PORT}`)
   );
 
