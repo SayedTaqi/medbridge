@@ -70,3 +70,14 @@ This student submission intentionally uses RevenueCat-powered mobile in-app purc
 
 ## RevenueCat
 Entitlement: `consumer_premium`. Configure monthly ₹149 and annual ₹1,499 store products, with the 3-day trial configured in the stores/RevenueCat dashboard.
+
+---
+
+## 🏆 RevenueCat Implementation & Monetization Architecture
+
+MedBridge leverages **RevenueCat** to power its healthcare tiering for patients and caregivers:
+
+- **SDK Configuration**: `src/revenuecat.ts` initializes the native SDK with dynamic platform-based credentials and production sandbox fallbacks.
+- **Dynamic Paywall UI**: `src/PaywallModal.tsx` renders in-app offerings directly synced with RevenueCat packages (`₹149/mo` and `₹1,499/yr`).
+- **Feature Gating**: Active entitlements (`consumer_premium`) unlock real-time pharmacy inventory sweeps, family medicine tracking, and scheduled refill automation.
+- **Server-Side Webhook Synchronization**: `POST /api/webhooks/revenuecat` handles `INITIAL_PURCHASE`, `RENEWAL`, and `EXPIRATION` events to keep PostgreSQL state synchronized with zero client trust.

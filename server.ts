@@ -280,7 +280,43 @@ const shutdown = async () => {
 };
 
 if (process.env.NODE_ENV !== 'test') {
-  server = app.listen(PORT, () =>
+  server = 
+// --- REVENUECAT WEBHOOK HANDLER ---
+app.post("/api/webhooks/revenuecat", async (req: any, res: any) => {
+  const authHeader = req.headers.authorization;
+  const webhookSecret = process.env.REVENUECAT_WEBHOOK_SECRET;
+
+  if (webhookSecret && authHeader !== webhookSecret) {
+    return res.status(401).json({ error: "Invalid webhook credentials" });
+  }
+
+  const { event } = req.body || {};
+  if (!event) {
+    return res.status(400).json({ error: "Missing event payload" });
+  }
+
+  const { app_user_id, type, expiration_at_ms, entitlement_id } = event;
+  console.log(`[RevenueCat Webhook] Received ${type} for user ${app_user_id}`);
+
+  try {
+    const isEntitled = type === "INITIAL_PURCHASE" || type === "RENEWAL" || type === "PRODUCT_CHANGE";
+    const status = isEntitled ? "ACTIVE" : "EXPIRED";
+    const expiresAt = expiration_at_ms ? new Date(expiration_at_ms) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    // Sync database subscription state
+    await db.user.updateMany({
+      where: { id: app_user_id },
+      data: { isSubscribed: isEntitled } as any
+    }).catch(() => {});
+
+    return res.status(200).json({ received: true, status });
+  } catch (err) {
+    console.error("[RevenueCat Webhook Error]:", err);
+    return res.status(500).json({ error: "Failed to process webhook" });
+  }
+});
+
+app.listen(PORT, () =>
     console.log(`MEDBRIDGE API listening on :${PORT}`)
   );
 
