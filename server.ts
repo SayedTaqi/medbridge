@@ -1,4 +1,4 @@
-import { startAutoExpiryJobs } from "./cronWorker";
+import { startAutoExpiryJobs } from "./cronWorker.js";
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
