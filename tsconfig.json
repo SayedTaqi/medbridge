@@ -22,5 +22,6 @@
     "dist",
     "App.tsx",
     "src/**/*.ts"
-  ]
+  ],
+  "extends": "expo/tsconfig.base"
 }

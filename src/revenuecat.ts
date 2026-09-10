@@ -1,26 +1,26 @@
-export const REVENUECAT_ENTITLEMENT = 'consumer_premium';
-
-export async function configureRevenueCat(appUserId?: string): Promise<void> {
-  // Safe stub for preview builds
-  return;
+export async function configureRevenueCat() {
+  console.log('[RevenueCat] Mock initialized for development');
+  return Promise.resolve();
 }
 
-export async function identifyRevenueCatUser(appUserId: string): Promise<void> {
-  return;
+export async function identifyRevenueCatUser(userId: string) {
+  return Promise.resolve();
 }
 
-export async function getRevenueCatCustomerInfo(): Promise<any> {
-  return null;
+export async function getRevenueCatCustomerInfo() {
+  return Promise.resolve(null);
 }
 
-export function isPremium(customerInfo: any): boolean {
-  return false;
+export async function isPremium() {
+  return Promise.resolve(false);
 }
 
-export async function presentPremiumPaywallAlways(): Promise<boolean> {
-  return false;
+export async function presentPremiumPaywallAlways() {
+  alert('Premium feature: In-app purchase integration pending.');
+  return Promise.resolve();
 }
 
-export async function presentSubscriptionCenter(): Promise<void> {
-  return;
+export async function presentSubscriptionCenter() {
+  alert('Subscription center.');
+  return Promise.resolve();
 }
