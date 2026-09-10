@@ -267,7 +267,7 @@ app.use(
   }
 );
 
-let server: ReturnType<typeof app.listen> | undefined;
+let server: any;
 
 const shutdown = async () => {
   await db.$disconnect();
